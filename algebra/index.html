@@ -165,8 +165,7 @@
     // or if it's called locally within algebra/index.html.
     window.addMoney = function(amount) {
         // Since both the main page and this game access the same localStorage key,
-        // we can directly update the balance here. The parent page will read it on its next load/refresh.
-        // Removed window.parent.addMoney to fix cross-origin access error.
+        // we can directly update the balance here.
         setBalance(getBalance() + amount);
     };
 
@@ -176,7 +175,7 @@
         explanationEl.textContent = '';
 
       if(currentQuestionIndex >= shuffledQuestions.length) {
-        feedbackEl.textContent = 'You completed all questions! 🎉';
+        feedbackEl.textContent = 'You completed all questions! �';
         explanationEl.textContent = '';
         questionEl.textContent = 'All challenges completed!';
         answerEl.style.display = 'none';
@@ -240,3 +239,4 @@
   </script>
 </body>
 </html>
+�
