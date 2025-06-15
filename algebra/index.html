@@ -8,41 +8,41 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
 
-    /* Custom Modal Styles (for validation messages) */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        visibility: hidden;
-        opacity: 0;
-        transition: visibility 0s, opacity 0.3s ease-in-out;
-    }
-    .modal-overlay.active {
-        visibility: visible;
-        opacity: 1;
-    }
-    .modal-content {
-        background-color: white;
-        padding: 2rem;
-        border-radius: 0.75rem; /* rounded-xl */
-        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
-        text-align: center;
-        max-width: 90%;
-        width: 400px;
-        transform: translateY(-20px);
-        transition: transform 0.3s ease-in-out;
-    }
-    .modal-overlay.active .modal-content {
-        transform: translateY(0);
-    }
-  </style>
+    /* Custom Modal Styles (for validation messages) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        visibility: hidden;
+        opacity: 0;
+        transition: visibility 0s, opacity 0.3s ease-in-out;
+    }
+    .modal-overlay.active {
+        visibility: visible;
+        opacity: 1;
+    }
+    .modal-content {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 0.75rem; /* rounded-xl */
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
+        text-align: center;
+        max-width: 90%;
+        width: 400px;
+        transform: translateY(-20px);
+        transition: transform 0.3s ease-in-out;
+    }
+    .modal-overlay.active .modal-content {
+        transform: translateY(0);
+    }
+  </style>
 </head>
 <body class="bg-white text-gray-900 min-h-screen flex flex-col">
   <header class="bg-white py-4 shadow-sm">
@@ -71,13 +71,13 @@
     <p>&copy; <span id="year"></span> Adapt. All rights reserved.</p>
   </footer>
 
-    <!-- Custom Modal Structure -->
-    <div id="customModal" class="modal-overlay">
-        <div class="modal-content">
-            <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
-            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
-        </div>
-    </div>
+    <!-- Custom Modal Structure -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
+            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
+        </div>
+    </div>
 
   <script>
     const BALANCE_KEY = 'adapt_wallet_balance';
@@ -91,23 +91,23 @@
     const submitBtn = document.getElementById('submitBtn');
     const nextBtn = document.getElementById('nextBtn');
 
-    const customModal = document.getElementById('customModal');
-    const modalMessage = document.getElementById('modalMessage');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const customModal = document.getElementById('customModal');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
 
-    // Function to show the custom modal
-    function showModal(message) {
-        modalMessage.textContent = message;
-        customModal.classList.add('active');
-    }
+    // Function to show the custom modal
+    function showModal(message) {
+        modalMessage.textContent = message;
+        customModal.classList.add('active');
+    }
 
-    // Function to hide the custom modal
-    function hideModal() {
-        customModal.classList.remove('active');
-    }
+    // Function to hide the custom modal
+    function hideModal() {
+        customModal.classList.remove('active');
+    }
 
-    // Event listener for closing the modal
-    modalCloseBtn.addEventListener('click', hideModal);
+    // Event listener for closing the modal
+    modalCloseBtn.addEventListener('click', hideModal);
 
     const questions = [
       { q: 'x + 3 = 7', a: 4, expl: 'To find x, subtract 3 from 7. So, 7 - 3 = 4.' },
@@ -132,7 +132,7 @@
       { q: 'x + 9 = 18', a: 9, expl: 'Subtract 9 from both sides. So, 18 - 9 = 9.' }
     ];
 
-    // Function to shuffle an array
+    // Function to shuffle an array
     function shuffleArray(arr) {
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -147,14 +147,14 @@
 
 
     function getBalance() {
-        // Attempt to get balance from localStorage. Returns 0 if not found.
+        // Attempt to get balance from localStorage. Returns 0 if not found.
       return Number(localStorage.getItem(BALANCE_KEY)) || 0;
     }
 
     function setBalance(val) {
-        // Sets balance in localStorage
+        // Sets balance in localStorage
       localStorage.setItem(BALANCE_KEY, val);
-        // Updates the wallet display in the header
+        // Updates the wallet display in the header
       if (walletEl) {
         walletEl.textContent = `$${val.toFixed(2)}`;
       }
@@ -164,19 +164,16 @@
     // This ensures that addMoney works even if it's called from index.html (the parent frame)
     // or if it's called locally within algebra/index.html.
     window.addMoney = function(amount) {
-        // If the main index.html has its own addMoney (e.g., if loaded in an iframe)
-        // and it has a wallet display, update that too.
-        if (window.parent && window.parent.addMoney) {
-            window.parent.addMoney(amount);
-        } else {
-            setBalance(getBalance() + amount);
-        }
+        // Since both the main page and this game access the same localStorage key,
+        // we can directly update the balance here. The parent page will read it on its next load/refresh.
+        // Removed window.parent.addMoney to fix cross-origin access error.
+        setBalance(getBalance() + amount);
     };
 
     function showQuestion() {
-        // Clear feedback and explanation immediately when loading a new question
-        feedbackEl.textContent = '';
-        explanationEl.textContent = '';
+        // Clear feedback and explanation immediately when loading a new question
+        feedbackEl.textContent = '';
+        explanationEl.textContent = '';
 
       if(currentQuestionIndex >= shuffledQuestions.length) {
         feedbackEl.textContent = 'You completed all questions! 🎉';
@@ -207,11 +204,11 @@
       const correctAnswer = currentQ.a;
       const explanation = currentQ.expl;
 
-      // Input validation using the modal
-      if (answerEl.value.trim() === '' || isNaN(userAnswer)) {
-          showModal('Please enter a valid number for your answer.');
-          return;
-      }
+      // Input validation using the modal
+      if (answerEl.value.trim() === '' || isNaN(userAnswer)) {
+          showModal('Please enter a valid number for your answer.');
+          return;
+      }
 
       answerEl.disabled = true;
       submitBtn.disabled = true;
@@ -221,12 +218,14 @@
         feedbackEl.textContent = 'Correct! +$1 earned 🎉';
         feedbackEl.className = 'text-green-600 mt-4';
         explanationEl.textContent = ''; // Clear explanation on correct answer
+        // Automatically move to next question after correct answer
+        setTimeout(nextQuestion, 1500); // 1.5 second delay
       } else {
         feedbackEl.textContent = `Oops! The correct answer was ${correctAnswer}.`;
         feedbackEl.className = 'text-red-600 mt-4';
         explanationEl.textContent = explanation; // Show explanation on incorrect answer
+        nextBtn.style.display = 'inline-block'; // Show OK button for manual progression
       }
-      nextBtn.style.display = 'inline-block'; // Show OK button
     }
 
     function nextQuestion() {
@@ -235,8 +234,8 @@
     }
 
     yearEl.textContent = new Date().getFullYear();
-    // Initialize wallet display when the page loads
-    setBalance(getBalance());
+    // Initialize wallet display when the page loads
+    setBalance(getBalance());
     showQuestion(); // Initial question load
   </script>
 </body>
