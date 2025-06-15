@@ -1,243 +1,127 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Algebra Game – Adapt</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-
-    /* Custom Modal Styles (for validation messages) */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        visibility: hidden;
-        opacity: 0;
-        transition: visibility 0s, opacity 0.3s ease-in-out;
-    }
-    .modal-overlay.active {
-        visibility: visible;
-        opacity: 1;
-    }
-    .modal-content {
-        background-color: white;
-        padding: 2rem;
-        border-radius: 0.75rem; /* rounded-xl */
-        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
-        text-align: center;
-        max-width: 90%;
-        width: 400px;
-        transform: translateY(-20px);
-        transition: transform 0.3s ease-in-out;
-    }
-    .modal-overlay.active .modal-content {
-        transform: translateY(0);
-    }
-  </style>
-</head>
-<body class="bg-white text-gray-900 min-h-screen flex flex-col">
-  <header class="bg-white py-4 shadow-sm">
-    <div class="container mx-auto px-4 flex justify-between items-center max-w-6xl">
-      <a href="../index.html" class="text-3xl font-bold tracking-tight">Adapt</a>
-      <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
-    </div>
-  </header>
-
-  <main class="flex-grow container mx-auto px-4 py-12 max-w-xl">
-    <h1 class="text-4xl font-bold text-center mb-6">Algebra Game</h1>
-    <p class="text-center text-gray-700 mb-8">Solve the algebra problems below. Earn $1 for each correct answer!</p>
-
-    <div id="game" class="bg-gray-100 p-6 rounded-lg shadow-md">
-      <p id="explanation" class="mb-4 text-gray-700 italic min-h-[3em]"></p>
-      <p class="text-xl font-medium mb-4" id="question"></p>
-      <input type="text" id="answer" class="border rounded px-3 py-2 w-full mb-4" placeholder="Type your answer here" />
-      <button id="submitBtn" onclick="checkAnswer()" class="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-600">Submit</button>
-      <button id="nextBtn" onclick="nextQuestion()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 ml-2 hidden">OK</button>
-      <p id="feedback" class="mt-4 text-lg min-h-[2em]"></p>
-      <p class="mt-2 text-gray-600">Question <span id="progress">1</span> of 20</p>
-    </div>
-  </main>
-
-  <footer class="bg-gray-900 text-white py-6 text-center text-gray-400">
-    <p>&copy; <span id="year"></span> Adapt. All rights reserved.</p>
-  </footer>
-
-    <!-- Custom Modal Structure -->
-    <div id="customModal" class="modal-overlay">
-        <div class="modal-content">
-            <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
-            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
-        </div>
-    </div>
-
-  <script>
-    const BALANCE_KEY = 'adapt_wallet_balance';
-    const walletEl = document.getElementById('wallet');
-    const yearEl = document.getElementById('year');
-    const questionEl = document.getElementById('question');
-    const answerEl = document.getElementById('answer');
-    const feedbackEl = document.getElementById('feedback');
-    const explanationEl = document.getElementById('explanation');
-    const progressEl = document.getElementById('progress');
-    const submitBtn = document.getElementById('submitBtn');
-    const nextBtn = document.getElementById('nextBtn');
-
-    const customModal = document.getElementById('customModal');
-    const modalMessage = document.getElementById('modalMessage');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-
-    // Function to show the custom modal
-    function showModal(message) {
-        modalMessage.textContent = message;
-        customModal.classList.add('active');
-    }
-
-    // Function to hide the custom modal
-    function hideModal() {
-        customModal.classList.remove('active');
-    }
-
-    // Event listener for closing the modal
-    modalCloseBtn.addEventListener('click', hideModal);
-
-    const questions = [
-      { q: 'x + 3 = 7', a: 4, expl: 'To find x, subtract 3 from 7. So, 7 - 3 = 4.' },
-      { q: '2x = 10', a: 5, expl: 'Divide both sides by 2 to find x. So, 10 ÷ 2 = 5.' },
-      { q: 'x - 5 = 2', a: 7, expl: 'Add 5 to both sides to find x. So, 2 + 5 = 7.' },
-      { q: '3x = 15', a: 5, expl: 'Divide both sides by 3. So, 15 ÷ 3 = 5.' },
-      { q: 'x / 2 = 4', a: 8, expl: 'Multiply both sides by 2. So, 4 × 2 = 8.' },
-      { q: 'x + 6 = 10', a: 4, expl: 'Subtract 6 from both sides. So, 10 - 6 = 4.' },
-      { q: '5x = 25', a: 5, expl: 'Divide both sides by 5. So, 25 ÷ 5 = 5.' },
-      { q: 'x - 4 = 1', a: 5, expl: 'Add 4 to both sides. So, 1 + 4 = 5.' },
-      { q: 'x / 3 = 3', a: 9, expl: 'Multiply both sides by 3. So, 3 × 3 = 9.' },
-      { q: '4x = 16', a: 4, expl: 'Divide both sides by 4. So, 16 ÷ 4 = 4.' },
-      { q: 'x + 2 = 9', a: 7, expl: 'Subtract 2 from both sides. So, 9 - 2 = 7.' },
-      { q: 'x - 3 = 0', a: 3, expl: 'Add 3 to both sides. So, 0 + 3 = 3.' },
-      { q: 'x / 4 = 5', a: 20, expl: 'Multiply both sides by 4. So, 5 × 4 = 20.' },
-      { q: '6x = 12', a: 2, expl: 'Divide both sides by 6. So, 12 ÷ 6 = 2.' },
-      { q: 'x + 5 = 12', a: 7, expl: 'Subtract 5 from both sides. So, 12 - 5 = 7.' },
-      { q: '3x = 21', a: 7, expl: 'Divide both sides by 3. So, 21 ÷ 3 = 7.' },
-      { q: 'x - 7 = 6', a: 13, expl: 'Add 7 to both sides. So, 6 + 7 = 13.' },
-      { q: 'x / 5 = 2', a: 10, expl: 'Multiply both sides by 5. So, 2 × 5 = 10.' },
-      { q: '7x = 28', a: 4, expl: 'Divide both sides by 7. So, 28 ÷ 7 = 4.' },
-      { q: 'x + 9 = 18', a: 9, expl: 'Subtract 9 from both sides. So, 18 - 9 = 9.' }
-    ];
-
-    // Function to shuffle an array
-    function shuffleArray(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-
-    // Shuffle questions on load to randomize order
-    let shuffledQuestions = shuffleArray([...questions]);
-    let currentQuestionIndex = 0;
-
-
-    function getBalance() {
-        // Attempt to get balance from localStorage. Returns 0 if not found.
-      return Number(localStorage.getItem(BALANCE_KEY)) || 0;
-    }
-
-    function setBalance(val) {
-        // Sets balance in localStorage
-      localStorage.setItem(BALANCE_KEY, val);
-        // Updates the wallet display in the header
-      if (walletEl) {
-        walletEl.textContent = `$${val.toFixed(2)}`;
-      }
-    }
-
-    // Global function for adding money, callable from other pages/games
-    // This ensures that addMoney works even if it's called from index.html (the parent frame)
-    // or if it's called locally within algebra/index.html.
-    window.addMoney = function(amount) {
-        // If the main index.html has its own addMoney (e.g., if loaded in an iframe)
-        // and it has a wallet display, update that too.
-        if (window.parent && window.parent.addMoney) {
-            window.parent.addMoney(amount);
-        } else {
-            setBalance(getBalance() + amount);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adapt - Learn. Play. Adapt.</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff; /* Equivalent to @apply bg-white */
+            color: #1a202c; /* Equivalent to @apply text-gray-900 */
         }
-    };
+        /* Custom hover effect for navigation links */
+        .nav-link {
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #4b5563; /* Tailwind gray-600 */
+            transform: scaleX(0);
+            transition: transform 0.3s ease-out;
+        }
+        .nav-link:hover::after {
+            transform: scaleX(1);
+        }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
 
-    function showQuestion() {
-        // Clear feedback and explanation immediately when loading a new question
-        feedbackEl.textContent = '';
-        explanationEl.textContent = '';
+    <!-- Header Section -->
+    <header class="bg-white py-4 shadow-sm">
+        <div class="container mx-auto px-4 flex justify-between items-center max-w-6xl">
+            <!-- Logo/Site Name -->
+            <a href="#" class="text-3xl font-bold text-gray-900 tracking-tight">Adapt</a>
 
-      if(currentQuestionIndex >= shuffledQuestions.length) {
-        feedbackEl.textContent = 'You completed all questions! 🎉';
-        explanationEl.textContent = '';
-        questionEl.textContent = 'All challenges completed!';
-        answerEl.style.display = 'none';
-        submitBtn.style.display = 'none';
-        nextBtn.style.display = 'none';
-        progressEl.textContent = shuffledQuestions.length; // Show total questions completed
-        return;
-      }
+            <!-- Navigation Bar -->
+            <nav>
+                <ul class="flex space-x-6">
+                    <li><a href="#" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">Home</a></li>
+                    <li><a href="#about" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">About</a></li>
+                    <li><a href="#featured-module" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">Modules</a></li>
+                    <li><a href="#" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
 
-      const q = shuffledQuestions[currentQuestionIndex];
-      questionEl.textContent = `Solve: ${q.q}`;
-      progressEl.textContent = currentQuestionIndex + 1;
-      answerEl.value = '';
-      answerEl.disabled = false;
-      submitBtn.disabled = false;
-      nextBtn.style.display = 'none'; // Hide OK button
-      answerEl.style.display = 'block'; // Ensure input is visible
-      submitBtn.style.display = 'inline-block'; // Ensure submit is visible
-      answerEl.focus(); // Focus on the answer input
-    }
+    <!-- Main Content -->
+    <main class="flex-grow">
+        <!-- Hero Section -->
+        <section class="bg-gray-100 py-20 md:py-32 text-center rounded-b-lg shadow-inner">
+            <div class="container mx-auto px-4 max-w-4xl">
+                <h1 class="text-5xl md:text-7xl font-extrabold leading-tight text-gray-900 mb-6 tracking-tight">
+                    Learn. Play. Adapt.
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-700 mb-10">
+                    Gamified learning for curious minds.
+                </p>
+                <!-- Call-to-action Button -->
+                <a href="#featured-module" class="bg-gray-900 text-white font-semibold py-3 px-8 rounded-full text-lg shadow-md
+                               hover:bg-gray-700 hover:shadow-lg transition-all duration-300 ease-in-out
+                               focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-75">
+                    Start Learning
+                </a>
+            </div>
+        </section>
 
-    function checkAnswer() {
-      const userAnswer = Number(answerEl.value);
-      const currentQ = shuffledQuestions[currentQuestionIndex];
-      const correctAnswer = currentQ.a;
-      const explanation = currentQ.expl;
+        <!-- About Section -->
+        <section id="about" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-4 max-w-3xl text-center">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-8">About Adapt</h2>
+                <p class="text-lg md:text-xl text-gray-700 leading-relaxed">
+                    Adapt is a fun and educational platform that helps kids learn real-world skills through engaging games and interactive modules. We believe that learning should be an adventure, fostering curiosity, critical thinking, and a lifelong love for discovery. Join us to transform education into an exciting journey!
+                </p>
+            </div>
+        </section>
 
-      // Input validation using the modal
-      if (answerEl.value.trim() === '' || isNaN(userAnswer)) {
-          showModal('Please enter a valid number for your answer.');
-          return;
-      }
+        <!-- Featured Learning Module Section -->
+        <section id="featured-module" class="py-16 md:py-24 bg-gray-50 border-t border-b border-gray-200">
+            <div class="container mx-auto px-4 max-w-4xl text-center">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-10">Featured Learning Module</h2>
+                <div class="bg-white p-8 md:p-12 rounded-xl shadow-lg border border-gray-200
+                            hover:shadow-xl transition-shadow duration-300 ease-in-out">
+                    <!-- Icon for Algebra -->
+                    <div class="w-24 h-24 mx-auto mb-6 bg-purple-200 rounded-full flex items-center justify-center">
+                        <svg class="w-16 h-16 text-purple-700" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM11 7h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4">Master Algebra Basics</h3>
+                    <p class="text-lg text-gray-600 mb-6">
+                        Unlock the power of numbers with our interactive Algebra Challenge! Solve equations and earn rewards.
+                    </p>
+                    <a href="algebra-game.html" class="inline-block bg-gray-800 text-white font-semibold py-2 px-6 rounded-full text-md shadow-sm
+                                      hover:bg-gray-600 hover:shadow-md transition-all duration-300 ease-in-out
+                                      focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-75">
+                        Start Algebra Challenge
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
 
-      answerEl.disabled = true;
-      submitBtn.disabled = true;
+    <!-- Footer Section -->
+    <footer class="bg-gray-900 text-white py-8 mt-12">
+        <div class="container mx-auto px-4 text-center text-gray-400 max-w-6xl">
+            <p>&copy; <span id="year"></span> Adapt. All rights reserved.</p>
+        </div>
+    </footer>
 
-      if (userAnswer === correctAnswer) {
-        window.addMoney(1); // Use global addMoney
-        feedbackEl.textContent = 'Correct! +$1 earned 🎉';
-        feedbackEl.className = 'text-green-600 mt-4';
-        explanationEl.textContent = ''; // Clear explanation on correct answer
-      } else {
-        feedbackEl.textContent = `Oops! The correct answer was ${correctAnswer}.`;
-        feedbackEl.className = 'text-red-600 mt-4';
-        explanationEl.textContent = explanation; // Show explanation on incorrect answer
-      }
-      nextBtn.style.display = 'inline-block'; // Show OK button
-    }
+    <script>
+        // Update the current year in the footer
+        document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
 
-    function nextQuestion() {
-      currentQuestionIndex++;
-      showQuestion(); // Load the next question or completion message
-    }
-
-    yearEl.textContent = new Date().getFullYear();
-    // Initialize wallet display when the page loads
-    setBalance(getBalance());
-    showQuestion(); // Initial question load
-  </script>
 </body>
 </html>
