@@ -178,6 +178,8 @@
         // Clear feedback and explanation immediately when loading a new question
         feedbackEl.textContent = '';
         explanationEl.textContent = '';
+        // Reset feedback styling
+        feedbackEl.className = 'mt-4 text-lg min-h-[2em] text-center';
 
       if(currentQuestionIndex >= shuffledQuestions.length) {
         feedbackEl.textContent = 'You completed all questions! 🎉';
@@ -220,13 +222,16 @@
       if (userAnswer === correctAnswer) {
         window.addMoney(1); // Use global addMoney
         feedbackEl.textContent = 'Correct! +$1 earned 🎉';
-        feedbackEl.className = 'text-green-600 mt-4';
+        // Make correct message larger and bold
+        feedbackEl.className = 'mt-4 text-2xl font-bold text-green-600 min-h-[2em] text-center';
         explanationEl.textContent = ''; // Clear explanation on correct answer
         // Automatically move to next question after correct answer
         setTimeout(nextQuestion, 1500); // 1.5 second delay
       } else {
         feedbackEl.textContent = `Oops! The correct answer was ${correctAnswer}.`;
-        feedbackEl.className = 'text-red-600 mt-4';
+        feedbackEl.className = 'mt-4 text-lg text-red-600 min-h-[2em] text-center';
+        // Make explanation larger and centered for incorrect answers
+        explanationEl.className = 'mb-4 text-xl text-gray-700 italic min-h-[3em] text-center';
         explanationEl.textContent = explanation; // Show explanation on incorrect answer
         nextBtn.style.display = 'inline-block'; // Show OK button for manual progression
       }
