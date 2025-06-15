@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algebra Game – Adapt</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-white text-gray-900 min-h-screen flex flex-col">
+  <header class="bg-white py-4 shadow-sm">
+    <div class="container mx-auto px-4 flex justify-between items-center max-w-6xl">
+      <a href="index.html" class="text-3xl font-bold tracking-tight">Adapt</a>
+      <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
+    </div>
+  </header>
+
+  <main class="flex-grow container mx-auto px-4 py-12 max-w-xl">
+    <h1 class="text-4xl font-bold text-center mb-6">Algebra Game</h1>
+    <p class="text-center text-gray-700 mb-8">Solve the algebra problems below. Earn $1 for each correct answer!</p>
+
+    <div id="game" class="bg-gray-100 p-6 rounded-lg shadow-md">
+      <p id="explanation" class="mb-4 text-gray-700 italic min-h-[3em]"></p>
+      <p class="text-xl font-medium mb-4" id="question"></p>
+      <input type="text" id="answer" class="border rounded px-3 py-2 w-full mb-4" placeholder="Type your answer here" />
+      <button id="submitBtn" onclick="checkAnswer()" class="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-600">Submit</button>
+      <button id="nextBtn" onclick="nextQuestion()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 ml-2 hidden">OK</button>
+      <p id="feedback" class="mt-4 text-lg min-h-[2em]"></p>
+      <p class="mt-2 text-gray-600">Question <span id="progress">1</span> of 20</p>
+    </div>
+  </main>
+
+  <footer class="bg-gray-900 text-white py-6 text-center text-gray-400">
+    <p>&copy; <span id="year"></span> Adapt. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const BALANCE_KEY = 'adapt_wallet_balance';
+    const walletEl = document.getElementById('wallet');
+    const yearEl = document.getElementById('year');
+    const questionEl = document.getElementById('question');
+    const answerEl = document.getElementById('answer');
+    const feedbackEl = document.getElementById('feedback');
+    const explanationEl = document.getElementById('explanation');
+    const progressEl = document.getElementById('progress');
+    const submitBtn = document.getElementById('submitBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    const questions = [
+      { q: 'x + 3 = 7', a: 4, expl: 'To find x, subtract 3 from 7. So, 7 - 3 = 4.' },
+      { q: '2x = 10', a: 5, expl: 'Divide both sides by 2 to find x. So, 10 ÷ 2 = 5.' },
+      { q: 'x - 5 = 2', a: 7, expl: 'Add 5 to both sides to find x. So, 2 + 5 = 7.' },
+      { q: '3x = 15', a: 5, expl: 'Divide both sides by 3. So, 15 ÷ 3 = 5.' },
+      { q: 'x / 2 = 4', a: 8, expl: 'Multiply both sides by 2. So, 4 × 2 = 8.' },
+      { q: 'x + 6 = 10', a: 4, expl: 'Subtract 6 from both sides. So, 10 - 6 = 4.' },
+      { q: '5x = 25', a: 5, expl: 'Divide both sides by 5. So, 25 ÷ 5 = 5.' },
+      { q: 'x - 4 = 1', a: 5, expl: 'Add 4 to both sides. So, 1 + 4 = 5.' },
+      { q: 'x / 3 = 3', a: 9, expl: 'Multiply both sides by 3. So, 3 × 3 = 9.' },
+      { q: '4x = 16', a: 4, expl: 'Divide both sides by 4. So, 16 ÷ 4 = 4.' },
+      { q: 'x + 2 = 9', a: 7, expl: 'Subtract 2 from both sides. So, 9 - 2 = 7.' },
+      { q: 'x - 3 = 0', a: 3, expl: 'Add 3 to both sides. So, 0 + 3 = 3.' },
+      { q: 'x / 4 = 5', a: 20, expl: 'Multiply both sides by 4. So, 5 × 4 = 20.' },
+      { q: '6x = 12', a: 2, expl: 'Divide both sides by 6. So, 12 ÷ 6 = 2.' },
+      { q: 'x + 5 = 12', a: 7, expl: 'Subtract 5 from both sides. So, 12 - 5 = 7.' },
+      { q: '3x = 21', a: 7, expl: 'Divide both sides by 3. So, 21 ÷ 3 = 7.' },
+      { q: 'x - 7 = 6', a: 13, expl: 'Add 7 to both sides. So, 6 + 7 = 13.' },
+      { q: 'x / 5 = 2', a: 10, expl: 'Multiply both sides by 5. So, 2 × 5 = 10.' },
+      { q: '7x = 28', a: 4, expl: 'Divide both sides by 7. So, 28 ÷ 7 = 4.' },
+      { q: 'x + 9 = 18', a: 9, expl: 'Subtract 9 from both sides. So, 18 - 9 = 9.' }
+    ];
+
+    let current = 0;
+
+    function getBalance() {
+      return Number(localStorage.getItem(BALANCE_KEY)) || 0;
+    }
+
+    function setBalance(val) {
+      localStorage.setItem(BALANCE_KEY, val);
+      walletEl.textContent = `$${val.toFixed(2)}`;
+    }
+
+    function addMoney(amount) {
+      setBalance(getBalance() + amount);
+    }
+
+    function showQuestion() {
+      if(current >= questions.length) {
+        feedbackEl.textContent = 'You completed all questions! 🎉';
+        explanationEl.textContent = '';
+        questionEl.textContent = '';
+        answerEl.style.display = 'none';
+        submitBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        progressEl.textContent = questions.length;
+        return;
+      }
+
+      const q = questions[current];
+      questionEl.textContent = `Solve: ${q.q}`;
+      progressEl.textContent = current + 1;
+      answerEl.value = '';
+      answerEl.disabled = false;
+      submitBtn.disabled = false;
+      feedbackEl.textContent = '';
+      explanationEl.textContent = '';
+      nextBtn.style.display = 'none';
+      answerEl.style.display = 'block';
+      submitBtn.style.display = 'inline-block';
+      answerEl.focus();
+    }
+
+    function checkAnswer() {
+      const userAnswer = Number(answerEl.value);
+      const correct = questions[current].a;
+      const explanation = questions[current].expl;
+
+      answerEl.disabled = true;
+      submitBtn.disabled = true;
+
+      if (userAnswer === correct) {
+        addMoney(1);
+        feedbackEl.textContent = 'Correct! +$1 earned 🎉';
+        feedbackEl.className = 'text-green-600 mt-4';
+        explanationEl.textContent = '';
+      } else {
+        feedbackEl.textContent = `Oops! The correct answer was ${correct}.`;
+        feedbackEl.className = 'text-red-600 mt-4';
+        explanationEl.textContent = explanation;
+      }
+      nextBtn.style.display = 'inline-block';
+    }
+
+    function nextQuestion() {
+      current++;
+      showQuestion();
+    }
+
+    yearEl.textContent = new Date().getFullYear();
+    setBalance(getBalance());
+    showQuestion();
+  </script>
+</body>
+</html>
