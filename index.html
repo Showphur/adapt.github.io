@@ -33,6 +33,40 @@
         .nav-link:hover::after {
             transform: scaleX(1);
         }
+        /* Custom Modal Styles (for consistent look, though not directly used in index.html for messages) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="antialiased flex flex-col min-h-screen">
@@ -52,6 +86,8 @@
                     <li><a href="#" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">Contact</a></li>
                 </ul>
             </nav>
+            <!-- Wallet Display -->
+            <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
         </div>
     </header>
 
@@ -101,7 +137,7 @@
                     <p class="text-lg text-gray-600 mb-6">
                         Unlock the power of numbers with our interactive Algebra Challenge! Solve equations and earn rewards.
                     </p>
-                    <a href="algebra-game.html" class="inline-block bg-gray-800 text-white font-semibold py-2 px-6 rounded-full text-md shadow-sm
+                    <a href="./algebra/index.html" class="inline-block bg-gray-800 text-white font-semibold py-2 px-6 rounded-full text-md shadow-sm
                                       hover:bg-gray-600 hover:shadow-md transition-all duration-300 ease-in-out
                                       focus:outline-none focus:ring-4 focus:ring-gray-300 focus:ring-opacity-75">
                         Start Algebra Challenge
@@ -118,11 +154,63 @@
         </div>
     </footer>
 
+    <!-- Custom Modal Structure -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
+            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
+        </div>
+    </div>
+
     <script>
         // Update the current year in the footer
         document.getElementById('year').textContent = new Date().getFullYear();
+
+        // Custom Modal Functions (shared across the application)
+        const customModal = document.getElementById('customModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+        function showModal(message) {
+            if (modalMessage && customModal) { // Check if elements exist before using
+                modalMessage.textContent = message;
+                customModal.classList.add('active');
+            }
+        }
+
+        function hideModal() {
+            if (customModal) { // Check if element exists
+                customModal.classList.remove('active');
+            }
+        }
+
+        if (modalCloseBtn) { // Add event listener only if button exists
+            modalCloseBtn.addEventListener('click', hideModal);
+        }
+
+        // Wallet Balance Management
+        const BALANCE_KEY = 'adapt_wallet_balance';
+        const walletEl = document.getElementById('wallet'); // Target the span with id="wallet"
+
+        function getBalance() {
+            return Number(localStorage.getItem(BALANCE_KEY)) || 0;
+        }
+
+        function setBalance(val) {
+            localStorage.setItem(BALANCE_KEY, val);
+            if (walletEl) { // Ensure walletEl exists before updating its textContent
+                walletEl.textContent = `$${val.toFixed(2)}`;
+            }
+        }
+
+        // Expose addMoney globally for games in other pages to use
+        window.addMoney = function(amount) {
+            setBalance(getBalance() + amount);
+        };
+
+        // Initialize wallet display on page load
+        setBalance(getBalance());
     </script>
 
 </body>
 </html>
-
