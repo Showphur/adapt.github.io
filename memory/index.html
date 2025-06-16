@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Match!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Body Styles */
+        body {
+            font-family: 'Inter', sans-serif; /* Consistent with landing page */
+            background-color: #ffffff; /* bg-white from landing page */
+            color: #1a202c; /* text-gray-900 from landing page */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            font-size: 1rem;
+        }
+
+        /* Game Container */
+        #game-container {
+            background-color: #f7fafc; /* bg-gray-50/100 from landing page */
+            border: 1px solid #e2e8f0; /* border-gray-200 from landing page */
+            border-radius: 0.75rem; /* rounded-xl from landing page */
+            padding: 1.5rem; /* p-6 */
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1); /* shadow-lg from landing page */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem; /* gap-6 */
+            max-width: 90%;
+            width: 500px; /* Adjust max width for game board */
+        }
+
+        /* Money Display */
+        #money-display {
+            font-size: 1.8em;
+            font-weight: 600; /* font-semibold */
+            color: #2ecc71; /* Green for money (kept for visual distinction) */
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        /* Game Board Grid */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 0.5rem; /* gap-2 */
+            padding: 0.75rem; /* p-3 */
+            background-color: #cbd5e0; /* light gray, similar to borders */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); /* inset shadow */
+        }
+
+        /* Individual Card Styles */
+        .card {
+            width: 80px;
+            height: 80px;
+            background-color: #4a5568; /* Card back color (gray-700) */
+            border: 2px solid #2d3748; /* Darker border (gray-900) */
+            border-radius: 0.5rem; /* rounded-lg */
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em; /* Emoji size */
+            color: #fff;
+            perspective: 1000px;
+            transition: transform 0.3s ease-out; /* For matched bounce */
+            position: relative;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-inner {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.5rem;
+        }
+
+        .card-back {
+            background-color: #4a5568; /* Card back color */
+            transform: rotateY(0deg);
+        }
+
+        .card-front {
+            background-color: #ffffff; /* bg-white for card front */
+            color: #1a202c; /* text-gray-900 for emoji */
+            transform: rotateY(180deg);
+        }
+
+        /* Matched Card Animation */
+        @keyframes popMatch {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .card.matched {
+            animation: popMatch 0.3s ease-out;
+            pointer-events: none;
+            opacity: 0.7; /* Slightly more fade for matched cards */
+        }
+
+        /* Modal Styles (copied from index.html for consistency) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        /* Play Again Button */
+        #play-again-button {
+            background-color: #4a5568; /* gray-700 from landing page button */
+            color: white;
+            padding: 0.75rem 2rem; /* py-3 px-8 */
+            border-radius: 9999px; /* rounded-full */
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* shadow-md */
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+            display: none;
+        }
+
+        #play-again-button:hover {
+            background-color: #2d3748; /* gray-900 hover */
+            box-shadow: 0 10px 15px rgba(0,0,0,0.15); /* hover:shadow-lg */
+        }
+
+        #play-again-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.5); /* focus:ring-4 focus:ring-gray-300 */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .card {
+                width: 55px;
+                height: 55px;
+                font-size: 1.8em;
+            }
+            #game-board {
+                gap: 0.4rem;
+                padding: 0.6rem;
+            }
+            #money-display {
+                font-size: 1.4em;
+            }
+            #play-again-button {
+                padding: 0.6rem 1.5rem;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="game-container">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 text-center">Memory Match!</h1>
+        <div id="money-display">Money: $0.00</div>
+        <div id="game-board">
+            <!-- Cards will be generated here by JavaScript -->
+        </div>
+        <!-- The win message will be displayed via the custom modal -->
+        <button id="play-again-button">Play Again</button>
+    </div>
+
+    <!-- Custom Modal Structure (from your index.html) -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
+            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const gameBoard = document.getElementById('game-board');
+        const moneyDisplay = document.getElementById('money-display');
+        // const winMessage = document.getElementById('win-message'); // No longer needed directly
+        const playAgainButton = document.getElementById('play-again-button');
+
+        // Custom Modal Functions (copied from your index.html)
+        const customModal = document.getElementById('customModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+        function showModal(message) {
+            if (modalMessage && customModal) {
+                modalMessage.textContent = message;
+                customModal.classList.add('active');
+            }
+        }
+
+        function hideModal() {
+            if (customModal) {
+                customModal.classList.remove('active');
+            }
+        }
+
+        if (modalCloseBtn) {
+            modalCloseBtn.addEventListener('click', hideModal);
+        }
+        // --- Game State Variables ---
+        const emojis = ['🌟', '🍎', '🌈', '🍦', '🎈', '🚀', '🐢', '🍩']; // 8 unique emojis
+        let cardContent = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let money = 0;
+        let lockBoard = false;
+
+        // --- Game Initialization ---
+
+        /**
+         * Shuffles an array randomly.
+         * @param {Array} array - The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        /**
+         * Resets the game state and sets up a new game board.
+         */
+        function initializeGame() {
+            flippedCards = [];
+            matchedPairs = 0;
+            money = 0;
+            lockBoard = false;
+            updateMoneyDisplay();
+            hideModal(); // Hide modal if it was open
+            playAgainButton.style.display = 'none';
+            gameBoard.innerHTML = '';
+
+            cardContent = [...emojis, ...emojis];
+            shuffleArray(cardContent);
+
+            cardContent.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.emoji = emoji;
+                card.dataset.id = index;
+
+                const cardInner = document.createElement('div');
+                cardInner.classList.add('card-inner');
+
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-front');
+                cardFront.textContent = emoji;
+
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-back');
+
+                cardInner.appendChild(cardBack);
+                cardInner.appendChild(cardFront);
+                card.appendChild(cardInner);
+
+                card.addEventListener('click', handleCardClick);
+                gameBoard.appendChild(card);
+            });
+        }
+
+        // --- Game Logic ---
+
+        /**
+         * Updates the money display on the screen.
+         */
+        function updateMoneyDisplay() {
+            moneyDisplay.textContent = `Money: $${money.toFixed(2)}`;
+        }
+
+        /**
+         * Handles a card click event.
+         * @param {Event} event - The click event.
+         */
+        function handleCardClick(event) {
+            const clickedCard = event.currentTarget;
+
+            if (lockBoard || clickedCard.classList.contains('flipped') || clickedCard.classList.contains('matched')) {
+                return;
+            }
+
+            clickedCard.classList.add('flipped');
+            flippedCards.push(clickedCard);
+
+            if (flippedCards.length === 2) {
+                lockBoard = true;
+                checkForMatch();
+            }
+        }
+
+        /**
+         * Checks if the two flipped cards are a match.
+         */
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;
+            const isMatch = card1.dataset.emoji === card2.dataset.emoji;
+
+            if (isMatch) {
+                disableCards(card1, card2);
+                matchedPairs++;
+                money += 1.00;
+                updateMoneyDisplay();
+                setTimeout(checkWinCondition, 300);
+            } else {
+                setTimeout(() => {
+                    unflipCards(card1, card2);
+                }, 1000);
+            }
+        }
+
+        /**
+         * Disables two matched cards, preventing further interaction and adding 'matched' class.
+         * @param {HTMLElement} card1 - The first matched card element.
+         * @param {HTMLElement} card2 - The second matched card element.
+         */
+        function disableCards(card1, card2) {
+            card1.removeEventListener('click', handleCardClick);
+            card2.removeEventListener('click', handleCardClick);
+            card1.classList.add('matched');
+            card2.classList.add('matched');
+            resetFlippedCards();
+        }
+
+        /**
+         * Unflips two non-matching cards.
+         * @param {HTMLElement} card1 - The first card element to unflip.
+         * @param {HTMLElement} card2 - The second card element to unflip.
+         */
+        function unflipCards(card1, card2) {
+            card1.classList.remove('flipped');
+            card2.classList.remove('flipped');
+            resetFlippedCards();
+        }
+
+        /**
+         * Resets the flippedCards array and unlocks the board.
+         */
+        function resetFlippedCards() {
+            flippedCards = [];
+            lockBoard = false;
+        }
+
+        /**
+         * Checks if all pairs have been matched to determine a win.
+         */
+        function checkWinCondition() {
+            if (matchedPairs === emojis.length) {
+                showModal("You win!");
+                playAgainButton.style.display = 'block';
+            }
+        }
+
+        // --- Event Listeners and Initial Call ---
+        playAgainButton.addEventListener('click', initializeGame);
+
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>
+
