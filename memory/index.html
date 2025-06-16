@@ -24,6 +24,38 @@
             font-size: 1rem;
         }
 
+        /* Header Styles (matching Algebra game) */
+        header {
+            background-color: #ffffff;
+            padding-top: 1rem; /* py-4 */
+            padding-bottom: 1rem; /* py-4 */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            width: 100%; /* Ensure header spans full width */
+        }
+        header .container {
+            max-width: 960px; /* max-w-6xl */
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 1rem; /* px-4 */
+            padding-right: 1rem; /* px-4 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header .logo {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 700; /* font-bold */
+            color: #1a202c; /* text-gray-900 */
+            letter-spacing: -0.025em; /* tracking-tight */
+            text-decoration: none; /* Remove underline from link */
+        }
+        header #wallet {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            color: #1a202c; /* text-gray-900 */
+        }
+
+
         /* Game Container */
         #game-container {
             background-color: #f7fafc; /* bg-gray-50/100 from landing page */
@@ -37,6 +69,7 @@
             gap: 1.5rem; /* gap-6 */
             max-width: 90%;
             width: 500px; /* Adjust max width for game board */
+            margin-top: 2rem; /* Add margin to push it down from the header */
         }
 
         /* Top Info Bar (Money and Flips) */
@@ -223,6 +256,14 @@
 </head>
 <body class="antialiased">
 
+    <!-- Header Section (matching Algebra Game) -->
+    <header>
+        <div class="container">
+            <a href="../index.html" class="logo">Adapt</a>
+            <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
+        </div>
+    </header>
+
     <div id="game-container">
         <h1 class="text-3xl md:text-4xl font-bold text-gray-900 text-center">Memory Match!</h1>
         <div id="info-bar">
@@ -250,6 +291,7 @@
         const moneyDisplay = document.getElementById('money-display');
         const flipsDisplay = document.getElementById('flips-display'); // New element for flips
         const playAgainButton = document.getElementById('play-again-button');
+        const walletEl = document.getElementById('wallet'); // Get the wallet element in the header
 
         // Custom Modal Functions (copied from your index.html)
         const customModal = document.getElementById('customModal');
@@ -281,6 +323,27 @@
         let flips = 0; // New variable to track flips
         let lockBoard = false;
 
+        // Wallet Balance Management (from landing page and algebra game)
+        const BALANCE_KEY = 'adapt_wallet_balance';
+
+        function getBalance() {
+            return Number(localStorage.getItem(BALANCE_KEY)) || 0;
+        }
+
+        function setBalance(val) {
+            localStorage.setItem(BALANCE_KEY, val);
+            if (walletEl) {
+                walletEl.textContent = `$${val.toFixed(2)}`;
+            }
+        }
+
+        // Expose addMoney globally if not already (for consistency)
+        if (typeof window.addMoney === 'undefined') {
+            window.addMoney = function(amount) {
+                setBalance(getBalance() + amount);
+            };
+        }
+
         // --- Game Initialization ---
 
         /**
@@ -310,6 +373,9 @@
             hideModal(); // Hide modal if it was open
             playAgainButton.style.display = 'none';
             gameBoard.innerHTML = '';
+
+            // Initialize the wallet display in the header
+            setBalance(getBalance());
 
             cardContent = [...emojis, ...emojis];
             shuffleArray(cardContent);
@@ -342,7 +408,7 @@
         // --- Game Logic ---
 
         /**
-         * Updates the money display on the screen.
+         * Updates the money display on the screen (local to game).
          */
         function updateMoneyDisplay() {
             moneyDisplay.textContent = `Money: $${money.toFixed(2)}`;
@@ -389,6 +455,7 @@
                 matchedPairs++;
                 money += 1.00;
                 updateMoneyDisplay();
+                window.addMoney(1); // Add money to the global wallet as well
                 setTimeout(checkWinCondition, 300);
             } else {
                 setTimeout(() => {
