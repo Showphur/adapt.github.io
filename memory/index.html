@@ -39,14 +39,26 @@
             width: 500px; /* Adjust max width for game board */
         }
 
-        /* Money Display */
-        #money-display {
-            font-size: 1.8em;
+        /* Top Info Bar (Money and Flips) */
+        #info-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #money-display, #flips-display {
+            font-size: 1.2em; /* Slightly smaller for two items */
             font-weight: 600; /* font-semibold */
             color: #2ecc71; /* Green for money (kept for visual distinction) */
-            margin-bottom: 0.5rem;
             text-align: center;
         }
+
+        #flips-display {
+            color: #4a5568; /* Gray for flips */
+        }
+
 
         /* Game Board Grid */
         #game-board {
@@ -199,8 +211,8 @@
                 gap: 0.4rem;
                 padding: 0.6rem;
             }
-            #money-display {
-                font-size: 1.4em;
+            #money-display, #flips-display {
+                font-size: 1em; /* Smaller font on small screens */
             }
             #play-again-button {
                 padding: 0.6rem 1.5rem;
@@ -213,7 +225,10 @@
 
     <div id="game-container">
         <h1 class="text-3xl md:text-4xl font-bold text-gray-900 text-center">Memory Match!</h1>
-        <div id="money-display">Money: $0.00</div>
+        <div id="info-bar">
+            <div id="money-display">Money: $0.00</div>
+            <div id="flips-display">Flips: 0</div>
+        </div>
         <div id="game-board">
             <!-- Cards will be generated here by JavaScript -->
         </div>
@@ -233,7 +248,7 @@
         // --- DOM Elements ---
         const gameBoard = document.getElementById('game-board');
         const moneyDisplay = document.getElementById('money-display');
-        // const winMessage = document.getElementById('win-message'); // No longer needed directly
+        const flipsDisplay = document.getElementById('flips-display'); // New element for flips
         const playAgainButton = document.getElementById('play-again-button');
 
         // Custom Modal Functions (copied from your index.html)
@@ -263,6 +278,7 @@
         let flippedCards = [];
         let matchedPairs = 0;
         let money = 0;
+        let flips = 0; // New variable to track flips
         let lockBoard = false;
 
         // --- Game Initialization ---
@@ -287,8 +303,10 @@
             flippedCards = [];
             matchedPairs = 0;
             money = 0;
+            flips = 0; // Reset flips on new game
             lockBoard = false;
             updateMoneyDisplay();
+            updateFlipsDisplay(); // Update flips display
             hideModal(); // Hide modal if it was open
             playAgainButton.style.display = 'none';
             gameBoard.innerHTML = '';
@@ -331,6 +349,13 @@
         }
 
         /**
+         * Updates the flips display on the screen.
+         */
+        function updateFlipsDisplay() {
+            flipsDisplay.textContent = `Flips: ${flips}`;
+        }
+
+        /**
          * Handles a card click event.
          * @param {Event} event - The click event.
          */
@@ -342,6 +367,8 @@
             }
 
             clickedCard.classList.add('flipped');
+            flips++; // Increment flips
+            updateFlipsDisplay(); // Update flips display
             flippedCards.push(clickedCard);
 
             if (flippedCards.length === 2) {
@@ -407,7 +434,7 @@
          */
         function checkWinCondition() {
             if (matchedPairs === emojis.length) {
-                showModal("You win!");
+                showModal(`You win! You made $${money.toFixed(2)} in ${flips} flips!`); // Include flips in win message
                 playAgainButton.style.display = 'block';
             }
         }
@@ -419,4 +446,3 @@
     </script>
 </body>
 </html>
-
