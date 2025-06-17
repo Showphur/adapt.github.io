@@ -209,7 +209,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"; // Import onSnapshot
 
         // Firebase Initialization and Auth
         const firebaseConfig = JSON.parse(__firebase_config);
@@ -219,75 +219,11 @@
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let userId = null; // To store the current user's ID
-        let dbReady = false; // Flag to ensure Firestore operations wait for auth
+        let unsubscribeBalance = null; // To store the unsubscribe function for the balance listener
 
         const userStatusEl = document.getElementById('user-id');
         const logoutBtn = document.getElementById('logout-btn');
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                userStatusEl.textContent = `User: ${userId.substring(0, 8)}...`; // Show truncated UID
-                logoutBtn.classList.remove('hidden');
-                dbReady = true;
-                // Re-initialize wallet display after user is authenticated
-                await getBalance(); // Fetch balance for the authenticated user
-            } else {
-                userId = null;
-                userStatusEl.textContent = 'Not logged in';
-                logoutBtn.classList.add('hidden');
-                dbReady = false;
-                // Fallback to anonymous sign-in if no custom token is present
-                if (typeof __initial_auth_token === 'undefined') {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (error) {
-                        console.error("Error signing in anonymously:", error);
-                        showModal("Failed to sign in. Please try refreshing the page.");
-                    }
-                }
-            }
-        });
-
-        // Attempt to sign in with custom token if available
-        if (typeof __initial_auth_token !== 'undefined') {
-            try {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } catch (error) {
-                console.error("Error signing in with custom token:", error);
-                showModal("Failed to sign in with provided token. You will be signed in anonymously.");
-                // Fallback to anonymous sign-in if custom token fails
-                try {
-                    await signInAnonymously(auth);
-                } catch (anonError) {
-                    console.error("Error signing in anonymously after custom token failure:", anonError);
-                    showModal("Failed to sign in. Please try refreshing the page.");
-                }
-            }
-        } else {
-            // Sign in anonymously if no custom token is provided initially
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Error signing in anonymously on initial load:", error);
-                showModal("Failed to sign in. Please try refreshing the page.");
-            }
-        }
-
-
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                showModal('Logged out successfully.');
-                setBalance(0); // Clear wallet display on logout
-            } catch (error) {
-                console.error("Error signing out:", error);
-                showModal("Failed to log out. Please try again.");
-            }
-        });
-
-        // Update the current year in the footer
-        document.getElementById('year').textContent = new Date().getFullYear();
+        const walletEl = document.getElementById('wallet'); // Target the span with id="wallet"
 
         // Custom Modal Functions (shared across the application)
         const customModal = document.getElementById('customModal');
@@ -311,43 +247,44 @@
             modalCloseBtn.addEventListener('click', hideModal);
         }
 
-        // Wallet Balance Management - NOW USING FIRESTORE
-        const walletEl = document.getElementById('wallet'); // Target the span with id="wallet"
-
-        async function getBalance() {
-            if (!dbReady || !userId) {
-                console.log("Firestore not ready or user not logged in. Cannot get balance.");
-                walletEl.textContent = `$0.00`; // Default display
-                return 0;
+        // Wallet Balance Management - NOW USING FIRESTORE with onSnapshot
+        function setupBalanceListener(currentUserId) {
+            // Unsubscribe from any previous listener to prevent memory leaks
+            if (unsubscribeBalance) {
+                unsubscribeBalance();
             }
-            try {
-                const balanceRef = doc(db, `artifacts/${appId}/users/${userId}/wallet/balance`);
-                const balanceSnap = await getDoc(balanceRef);
+
+            const balanceRef = doc(db, `artifacts/${appId}/users/${currentUserId}/wallet/balance`);
+
+            // Set up real-time listener
+            unsubscribeBalance = onSnapshot(balanceRef, (docSnap) => {
                 let currentBalance = 0;
-                if (balanceSnap.exists()) {
-                    currentBalance = balanceSnap.data().amount || 0;
+                if (docSnap.exists()) {
+                    currentBalance = docSnap.data().amount || 0;
                 } else {
                     // Initialize balance to 0 if it doesn't exist
-                    await setDoc(balanceRef, { amount: 0 });
+                    setDoc(balanceRef, { amount: 0 }).catch(error => {
+                        console.error("Error initializing balance in Firestore:", error);
+                        showModal("Failed to initialize balance. Please check your connection.");
+                    });
                 }
                 walletEl.textContent = `$${currentBalance.toFixed(2)}`;
-                return currentBalance;
-            } catch (error) {
-                console.error("Error getting balance from Firestore:", error);
+            }, (error) => {
+                console.error("Error listening to balance from Firestore:", error);
                 showModal("Failed to load balance. Please check your connection.");
-                return 0; // Return 0 on error
-            }
+            });
         }
 
         async function setBalance(val) {
-            if (!dbReady || !userId) {
-                console.log("Firestore not ready or user not logged in. Cannot set balance.");
+            if (!userId) {
+                console.log("User not logged in. Cannot set balance.");
+                showModal("Please log in to save your balance!");
                 return;
             }
             try {
                 const balanceRef = doc(db, `artifacts/${appId}/users/${userId}/wallet/balance`);
                 await setDoc(balanceRef, { amount: val });
-                walletEl.textContent = `$${val.toFixed(2)}`;
+                // The onSnapshot listener will automatically update walletEl.textContent
             } catch (error) {
                 console.error("Error setting balance to Firestore:", error);
                 showModal("Failed to save balance. Please check your connection.");
@@ -356,16 +293,95 @@
 
         // Expose addMoney globally for games in other pages to use
         window.addMoney = async function(amount) {
-            if (!dbReady || !userId) {
+            if (!userId) {
                 showModal("Please log in to earn coins!");
                 return;
             }
-            const currentBalance = await getBalance(); // Fetch latest balance
-            await setBalance(currentBalance + amount);
+            // Temporarily fetch the current balance to increment it safely
+            // The onSnapshot will then update the UI
+            try {
+                const balanceRef = doc(db, `artifacts/${appId}/users/${userId}/wallet/balance`);
+                const balanceSnap = await getDoc(balanceRef); // Use getDoc for one-time read
+                let currentBalance = 0;
+                if (balanceSnap.exists()) {
+                    currentBalance = balanceSnap.data().amount || 0;
+                }
+                await setBalance(currentBalance + amount);
+            } catch (error) {
+                console.error("Error adding money:", error);
+                showModal("Failed to add money. Please try again.");
+            }
         };
 
-        // Initialize wallet display on page load after Firebase is ready
-        // getBalance() is now called within onAuthStateChanged
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userStatusEl.textContent = `User: ${userId.substring(0, 8)}...`; // Show truncated UID
+                logoutBtn.classList.remove('hidden');
+                setupBalanceListener(userId); // Start listening to balance changes for this user
+            } else {
+                userId = null;
+                userStatusEl.textContent = 'Not logged in';
+                logoutBtn.classList.add('hidden');
+                walletEl.textContent = `$0.00`; // Reset wallet display on logout
+                if (unsubscribeBalance) {
+                    unsubscribeBalance(); // Stop listening to balance changes
+                    unsubscribeBalance = null;
+                }
+
+                // Attempt anonymous sign-in if no custom token provided, without modal on first load
+                if (typeof __initial_auth_token === 'undefined') {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Error signing in anonymously:", error);
+                        // Only show modal if it's a persistent issue, not on initial expected anonymous flow
+                    }
+                }
+            }
+        });
+
+        // Initial sign-in attempt (moved outside onAuthStateChanged for immediate execution)
+        (async () => {
+            if (typeof __initial_auth_token !== 'undefined') {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (error) {
+                    console.error("Error signing in with custom token:", error);
+                    showModal("Failed to sign in with provided token. You will be signed in anonymously.");
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (anonError) {
+                        console.error("Error signing in anonymously after custom token failure:", anonError);
+                        showModal("Failed to sign in. Please try refreshing the page.");
+                    }
+                }
+            } else {
+                // Sign in anonymously if no custom token is provided initially
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Error signing in anonymously on initial load:", error);
+                    // No modal here, as it's the expected fallback for Canvas environment
+                }
+            }
+        })();
+
+
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                showModal('Logged out successfully.');
+                // UI reset handled by onAuthStateChanged listener
+            } catch (error) {
+                console.error("Error signing out:", error);
+                showModal("Failed to log out. Please try again.");
+            }
+        });
+
+        // Update the current year in the footer
+        document.getElementById('year').textContent = new Date().getFullYear();
     </script>
 
 </body>
