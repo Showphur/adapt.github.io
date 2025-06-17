@@ -67,6 +67,23 @@
         .modal-overlay.active .modal-content {
             transform: translateY(0);
         }
+        /* Specific styles for card "used" marker */
+        .card-used-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 0.75rem;
+            pointer-events: none; /* Allows clicks to pass through if needed, but we'll disable the card itself */
+        }
     </style>
 </head>
 <body class="antialiased flex flex-col min-h-screen">
@@ -121,7 +138,10 @@
     <div id="customModal" class="modal-overlay">
         <div class="modal-content">
             <p id="modalMessage" class="text-lg font-semibold mb-4"></p>
-            <button id="modalCloseBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">OK</button>
+            <div class="flex justify-center space-x-4">
+                <button id="modalConfirmBtn" class="bg-gray-800 text-white px-6 py-2 rounded-full hover:bg-gray-600 transition-colors">Confirm</button>
+                <button id="modalCloseBtn" class="bg-gray-400 text-gray-800 px-6 py-2 rounded-full hover:bg-gray-300 transition-colors">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -132,24 +152,42 @@
         // Custom Modal Functions (shared across the application)
         const customModal = document.getElementById('customModal');
         const modalMessage = document.getElementById('modalMessage');
+        const modalConfirmBtn = document.getElementById('modalConfirmBtn'); // New: Confirm button
         const modalCloseBtn = document.getElementById('modalCloseBtn');
 
-        function showModal(message) {
-            if (modalMessage && customModal) {
-                modalMessage.textContent = message;
-                customModal.classList.add('active');
+        let modalCallback = null; // To store the function to call on modal confirm
+
+        function showModal(message, confirm = false, callback = null) {
+            modalMessage.textContent = message;
+            modalConfirmBtn.classList.add('hidden'); // Hide confirm by default
+            modalCloseBtn.textContent = 'OK'; // Default to OK for simple messages
+
+            if (confirm) {
+                modalConfirmBtn.classList.remove('hidden');
+                modalCloseBtn.textContent = 'Cancel'; // Change text to Cancel for confirmation
+                modalCallback = callback; // Store the callback function
+            } else {
+                modalCallback = null; // Clear callback for non-confirm modals
             }
+            customModal.classList.add('active');
         }
 
         function hideModal() {
-            if (customModal) {
-                customModal.classList.remove('active');
-            }
+            customModal.classList.remove('active');
+            modalCallback = null; // Clear callback
         }
 
-        if (modalCloseBtn) {
-            modalCloseBtn.addEventListener('click', hideModal);
-        }
+        // Event listener for OK/Cancel button (now versatile)
+        modalCloseBtn.addEventListener('click', hideModal);
+
+        // Event listener for Confirm button
+        modalConfirmBtn.addEventListener('click', () => {
+            if (modalCallback) {
+                modalCallback(true); // Call callback with true for confirmation
+            }
+            hideModal();
+        });
+
 
         // Wallet Balance Management (shared across the application)
         const BALANCE_KEY = 'adapt_wallet_balance';
@@ -208,33 +246,82 @@
             }
         ];
 
-        // Function to get purchased cards from localStorage
+        // Functions to manage purchased and used cards in localStorage
         const PURCHASED_CARDS_KEY = 'adapt_purchased_cards';
+        const USED_CARDS_KEY = 'adapt_used_cards'; // New key for used cards
 
         function getPurchasedCards() {
             return JSON.parse(localStorage.getItem(PURCHASED_CARDS_KEY)) || {};
+        }
+
+        function getUsedCards() {
+            return JSON.parse(localStorage.getItem(USED_CARDS_KEY)) || {};
+        }
+
+        function setUsedCards(usedCards) {
+            localStorage.setItem(USED_CARDS_KEY, JSON.stringify(usedCards));
+        }
+
+        // Function to handle using a card
+        function handleUseCard(event) {
+            const cardElement = event.currentTarget; // The div that was clicked
+            const cardId = cardElement.dataset.cardId;
+            const card = tradingCards.find(c => c.id === cardId);
+
+            if (!card) return;
+
+            let usedCards = getUsedCards();
+
+            // Prevent using if already used
+            if (usedCards[card.id]) {
+                showModal(`You've already used the "${card.name}" card!`);
+                return;
+            }
+
+            // Show confirmation modal
+            showModal(`Are you sure you want to use the "${card.name}" card?`, true, (confirmed) => {
+                if (confirmed) {
+                    usedCards[card.id] = true; // Mark as used
+                    setUsedCards(usedCards);
+                    showModal(`You used the "${card.name}" card!`);
+                    renderPurchasedCards(); // Re-render to show "Used" marker
+                }
+            });
         }
 
         // Function to render purchased cards
         function renderPurchasedCards() {
             const purchasedCardGrid = document.getElementById('purchased-card-grid');
             const noCardsMessage = document.getElementById('no-cards-message');
-            purchasedCardGrid.innerHTML = ''; // Clear existing cards (except the no-cards-message)
+            purchasedCardGrid.innerHTML = ''; // Clear existing cards
 
             const purchasedCardIds = getPurchasedCards();
+            const usedCardIds = getUsedCards(); // Get used cards status
             let hasPurchasedCards = false;
 
             tradingCards.forEach(card => {
                 if (purchasedCardIds[card.id]) {
                     hasPurchasedCards = true;
+                    const isUsed = usedCardIds[card.id]; // Check if this card is used
+
                     const cardElement = document.createElement('div');
-                    cardElement.className = `bg-white rounded-xl shadow-lg p-6 text-center border border-gray-200`;
+                    // Add data-card-id for event delegation
+                    cardElement.dataset.cardId = card.id;
+                    cardElement.className = `relative bg-white rounded-xl shadow-lg p-6 text-center border border-gray-200 cursor-pointer 
+                                             ${isUsed ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl transition-shadow duration-300 ease-in-out'}`;
+
                     cardElement.innerHTML = `
                         <img src="${card.imageUrl}" alt="${card.name}" class="w-32 h-32 mx-auto mb-4 rounded-lg object-cover">
                         <h3 class="text-xl font-semibold text-gray-900 mb-2">${card.name}</h3>
                         <p class="text-lg text-gray-700">Price Paid: $${card.price.toFixed(2)}</p>
+                        ${isUsed ? '<div class="card-used-overlay">USED!</div>' : ''}
                     `;
                     purchasedCardGrid.appendChild(cardElement);
+
+                    // Add event listener only if the card is not yet used
+                    if (!isUsed) {
+                        cardElement.addEventListener('click', handleUseCard);
+                    }
                 }
             });
 
@@ -252,4 +339,3 @@
 
 </body>
 </html>
-
