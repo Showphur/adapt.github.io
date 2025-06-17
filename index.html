@@ -90,8 +90,14 @@
                     <li><a href="#" class="text-lg font-medium text-gray-700 hover:text-gray-900 nav-link">Contact</a></li>
                 </ul>
             </nav>
-            <!-- Wallet Display -->
-            <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
+            <!-- Wallet Display and User Status -->
+            <div class="flex items-center space-x-4">
+                <div class="text-lg font-semibold">💰 <span id="wallet">$0.00</span></div>
+                <div id="user-status" class="text-sm text-gray-600 flex items-center space-x-2">
+                    <span id="user-id">Not logged in</span>
+                    <button id="logout-btn" class="hidden bg-red-500 text-white px-3 py-1 rounded-full text-xs hover:bg-red-600 transition-colors">Logout</button>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -199,7 +205,87 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+        // Firebase Initialization and Auth
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let userId = null; // To store the current user's ID
+        let dbReady = false; // Flag to ensure Firestore operations wait for auth
+
+        const userStatusEl = document.getElementById('user-id');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userStatusEl.textContent = `User: ${userId.substring(0, 8)}...`; // Show truncated UID
+                logoutBtn.classList.remove('hidden');
+                dbReady = true;
+                // Re-initialize wallet display after user is authenticated
+                await getBalance(); // Fetch balance for the authenticated user
+            } else {
+                userId = null;
+                userStatusEl.textContent = 'Not logged in';
+                logoutBtn.classList.add('hidden');
+                dbReady = false;
+                // Fallback to anonymous sign-in if no custom token is present
+                if (typeof __initial_auth_token === 'undefined') {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Error signing in anonymously:", error);
+                        showModal("Failed to sign in. Please try refreshing the page.");
+                    }
+                }
+            }
+        });
+
+        // Attempt to sign in with custom token if available
+        if (typeof __initial_auth_token !== 'undefined') {
+            try {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } catch (error) {
+                console.error("Error signing in with custom token:", error);
+                showModal("Failed to sign in with provided token. You will be signed in anonymously.");
+                // Fallback to anonymous sign-in if custom token fails
+                try {
+                    await signInAnonymously(auth);
+                } catch (anonError) {
+                    console.error("Error signing in anonymously after custom token failure:", anonError);
+                    showModal("Failed to sign in. Please try refreshing the page.");
+                }
+            }
+        } else {
+            // Sign in anonymously if no custom token is provided initially
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Error signing in anonymously on initial load:", error);
+                showModal("Failed to sign in. Please try refreshing the page.");
+            }
+        }
+
+
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                showModal('Logged out successfully.');
+                setBalance(0); // Clear wallet display on logout
+            } catch (error) {
+                console.error("Error signing out:", error);
+                showModal("Failed to log out. Please try again.");
+            }
+        });
+
         // Update the current year in the footer
         document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -209,44 +295,77 @@
         const modalCloseBtn = document.getElementById('modalCloseBtn');
 
         function showModal(message) {
-            if (modalMessage && customModal) { // Check if elements exist before using
+            if (modalMessage && customModal) {
                 modalMessage.textContent = message;
                 customModal.classList.add('active');
             }
         }
 
         function hideModal() {
-            if (customModal) { // Check if element exists
+            if (customModal) {
                 customModal.classList.remove('active');
             }
         }
 
-        if (modalCloseBtn) { // Add event listener only if button exists
+        if (modalCloseBtn) {
             modalCloseBtn.addEventListener('click', hideModal);
         }
 
-        // Wallet Balance Management
-        const BALANCE_KEY = 'adapt_wallet_balance';
+        // Wallet Balance Management - NOW USING FIRESTORE
         const walletEl = document.getElementById('wallet'); // Target the span with id="wallet"
 
-        function getBalance() {
-            return Number(localStorage.getItem(BALANCE_KEY)) || 0;
+        async function getBalance() {
+            if (!dbReady || !userId) {
+                console.log("Firestore not ready or user not logged in. Cannot get balance.");
+                walletEl.textContent = `$0.00`; // Default display
+                return 0;
+            }
+            try {
+                const balanceRef = doc(db, `artifacts/${appId}/users/${userId}/wallet/balance`);
+                const balanceSnap = await getDoc(balanceRef);
+                let currentBalance = 0;
+                if (balanceSnap.exists()) {
+                    currentBalance = balanceSnap.data().amount || 0;
+                } else {
+                    // Initialize balance to 0 if it doesn't exist
+                    await setDoc(balanceRef, { amount: 0 });
+                }
+                walletEl.textContent = `$${currentBalance.toFixed(2)}`;
+                return currentBalance;
+            } catch (error) {
+                console.error("Error getting balance from Firestore:", error);
+                showModal("Failed to load balance. Please check your connection.");
+                return 0; // Return 0 on error
+            }
         }
 
-        function setBalance(val) {
-            localStorage.setItem(BALANCE_KEY, val);
-            if (walletEl) { // Ensure walletEl exists before updating its textContent
+        async function setBalance(val) {
+            if (!dbReady || !userId) {
+                console.log("Firestore not ready or user not logged in. Cannot set balance.");
+                return;
+            }
+            try {
+                const balanceRef = doc(db, `artifacts/${appId}/users/${userId}/wallet/balance`);
+                await setDoc(balanceRef, { amount: val });
                 walletEl.textContent = `$${val.toFixed(2)}`;
+            } catch (error) {
+                console.error("Error setting balance to Firestore:", error);
+                showModal("Failed to save balance. Please check your connection.");
             }
         }
 
         // Expose addMoney globally for games in other pages to use
-        window.addMoney = function(amount) {
-            setBalance(getBalance() + amount);
+        window.addMoney = async function(amount) {
+            if (!dbReady || !userId) {
+                showModal("Please log in to earn coins!");
+                return;
+            }
+            const currentBalance = await getBalance(); // Fetch latest balance
+            await setBalance(currentBalance + amount);
         };
 
-        // Initialize wallet display on page load
-        setBalance(getBalance());
+        // Initialize wallet display on page load after Firebase is ready
+        // getBalance() is now called within onAuthStateChanged
     </script>
 
 </body>
